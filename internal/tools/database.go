@@ -82,8 +82,11 @@ func (t *GetTableStructureTool) Execute(ctx context.Context, db *sql.DB, args ma
 
 // ── RunSqlQuery ───────────────────────────────────────────────────────────────
 
-var blockedKeywords = regexp.MustCompile(
+var blockedReadKeywords = regexp.MustCompile(
 	`(?i)\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|RENAME|REPLACE|GRANT|REVOKE|LOAD|EXEC|CALL)\b`)
+
+var blockedWriteKeywords = regexp.MustCompile(
+	`(?i)\b(DROP|TRUNCATE|ALTER|CREATE|RENAME|GRANT|REVOKE|LOAD|EXEC|CALL)\b`)
 
 type RunSqlQueryTool struct{}
 
@@ -115,7 +118,7 @@ func (t *RunSqlQueryTool) Execute(ctx context.Context, db *sql.DB, args map[stri
 	if !strings.HasPrefix(upper, "SELECT") {
 		return errResult("only SELECT queries are allowed")
 	}
-	if blockedKeywords.MatchString(q) {
+	if blockedReadKeywords.MatchString(q) {
 		return errResult("query contains forbidden keywords")
 	}
 
@@ -136,4 +139,55 @@ func (t *RunSqlQueryTool) Execute(ctx context.Context, db *sql.DB, args map[stri
 		truncated = true
 	}
 	return okResult(map[string]any{"rows": result, "truncated": truncated})
+}
+
+// ── RunSqlWrite ───────────────────────────────────────────────────────────────
+// Write-only version: INSERT/UPDATE/DELETE. Requires CanWrite permission.
+
+type RunSqlWriteTool struct{}
+
+func (t *RunSqlWriteTool) Name() string      { return "run_sql_write" }
+func (t *RunSqlWriteTool) ReadOnly() bool    { return false }
+func (t *RunSqlWriteTool) Description() string {
+	return "Выполнить INSERT/UPDATE/DELETE запрос к БД ERP. Доступно только при наличии прав записи. Использовать осторожно — требуй подтверждения у пользователя."
+}
+func (t *RunSqlWriteTool) Schema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"sql": map[string]any{"type": "string", "description": "SQL запрос (INSERT/UPDATE/DELETE)"},
+			"bindings": map[string]any{
+				"type":        "array",
+				"items":       map[string]any{"type": "string"},
+				"description": "Параметры для ? в запросе",
+			},
+		},
+		"required": []string{"sql"},
+	}
+}
+func (t *RunSqlWriteTool) Execute(ctx context.Context, db *sql.DB, args map[string]any) string {
+	q := strings.TrimSpace(strArg(args, "sql"))
+	if q == "" {
+		return errResult("sql is required")
+	}
+	upper := strings.ToUpper(strings.TrimSpace(q))
+	if strings.HasPrefix(upper, "SELECT") {
+		return errResult("use run_sql_query for SELECT queries")
+	}
+	if blockedWriteKeywords.MatchString(q) {
+		return errResult("query contains forbidden keywords (DROP/TRUNCATE/ALTER etc.)")
+	}
+
+	var bindings []any
+	if b, ok := args["bindings"].([]any); ok {
+		bindings = b
+	}
+
+	res, err := db.ExecContext(ctx, q, bindings...)
+	if err != nil {
+		return errResult("SQL error: " + err.Error())
+	}
+	affected, _ := res.RowsAffected()
+	lastID, _ := res.LastInsertId()
+	return okResult(map[string]any{"rows_affected": affected, "last_insert_id": lastID})
 }
