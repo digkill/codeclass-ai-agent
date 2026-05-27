@@ -1,0 +1,27 @@
+[Unit]
+Description=CodeClass AI Agent (Go)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+
+WorkingDirectory=/opt/codeclass-ai-agent
+ExecStart=/opt/codeclass-ai-agent/ai-agent
+
+# Load .env from the working directory (godotenv picks it up automatically).
+# Alternatively, override individual vars here:
+EnvironmentFile=-/opt/codeclass-ai-agent/.env
+
+Restart=on-failure
+RestartSec=5s
+
+# Keep logs in journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=codeclass-ai-agent
+
+[Install]
+WantedBy=multi-user.target

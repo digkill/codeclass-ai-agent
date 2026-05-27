@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.codeclass.ai-agent</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/digkill/Projects/go/codeclass-ai-agent/ai-agent</string>
+  </array>
+
+  <!-- WorkingDirectory = where the binary looks for .env -->
+  <key>WorkingDirectory</key>
+  <string>/Users/digkill/Projects/go/codeclass-ai-agent</string>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <dict>
+    <key>SuccessfulExit</key>
+    <false/>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>/usr/local/var/log/codeclass-ai-agent.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>/usr/local/var/log/codeclass-ai-agent.log</string>
+</dict>
+</plist>
