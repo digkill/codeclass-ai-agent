@@ -1,0 +1,5 @@
+.env
+ai-agent
+*.exe
+*.test
+/vendor/
