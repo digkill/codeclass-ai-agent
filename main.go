@@ -51,9 +51,14 @@ func main() {
 		queue.StartWorkers(ctx, cfg.Workers, cfg, rd, database, registry)
 	}
 
+	// ── Handlers ──────────────────────────────────────────────────────────────
+	convH := handler.NewConversationsHandler(cfg, database)
+	ctxH := handler.NewContextHandler(cfg, database)
+
 	// ── HTTP ──────────────────────────────────────────────────────────────────
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /chat", handler.NewChatHandler(cfg, database, registry, rd))
+
+	// Health
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		mode := "direct"
 		if rd != nil {
@@ -62,6 +67,26 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"ok":true,"mode":"` + mode + `","model":"` + cfg.OpenAIModel + `"}`))
 	})
+
+	// Chat (SSE)
+	mux.HandleFunc("POST /chat", handler.NewChatHandler(cfg, database, registry, rd))
+
+	// Conversations
+	mux.HandleFunc("GET /conversations", convH.List)
+	mux.HandleFunc("POST /conversations", convH.Create)
+	mux.HandleFunc("GET /conversations/{id}", convH.Get)
+	mux.HandleFunc("PATCH /conversations/{id}", convH.Update)
+	mux.HandleFunc("DELETE /conversations/{id}", convH.Delete)
+	mux.HandleFunc("GET /conversations/{id}/export", convH.Export)
+
+	// Context entries
+	mux.HandleFunc("GET /context", ctxH.Index)
+	mux.HandleFunc("POST /context", ctxH.Store)
+	mux.HandleFunc("PUT /context/{id}", ctxH.Update)
+	mux.HandleFunc("DELETE /context/{id}", ctxH.Delete)
+
+	// Tools list
+	mux.HandleFunc("GET /tools", handler.NewToolsAPIHandler(cfg, registry))
 
 	addr := "127.0.0.1:" + cfg.Port
 	log.Printf("ai-agent listening on %s  model=%s  write=%v  mode=%s  workers=%d",

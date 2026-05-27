@@ -66,7 +66,7 @@ install-linux: build
 		systemctl daemon-reload && \
 		systemctl enable codeclass-ai-agent && \
 		systemctl restart codeclass-ai-agent && \
-		systemctl status codeclass-ai-agent --no-pager"
+	z`r"
 
 uninstall-linux:
 	ssh $(DEPLOY_HOST) " \
